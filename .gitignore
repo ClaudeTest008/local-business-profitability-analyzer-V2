@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.expo/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+android/
+ios/
+web-build/
+drizzle/meta/_journal.json.bak
