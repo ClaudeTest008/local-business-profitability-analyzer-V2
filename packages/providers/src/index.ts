@@ -1,2 +1,18 @@
-// @lboa/providers — populated in its implementation phase
-export {};
+export type { Clock, DataProvider } from './types.js';
+export { withRetry } from './retry.js';
+export type { RetryOpts } from './retry.js';
+export { CircuitBreaker, CircuitOpenError } from './circuit-breaker.js';
+export type { CircuitState } from './circuit-breaker.js';
+export { TokenBucketRateLimiter } from './rate-limiter.js';
+export { MemoryCacheStore } from './cache.js';
+export type { CacheEntry, CacheStore } from './cache.js';
+export { ProviderChain } from './chain.js';
+export type { ProviderChainOpts } from './chain.js';
+export { OverpassPoiProvider } from './overpass.js';
+export type { OverpassRequest } from './overpass.js';
+export { NominatimGeocodeProvider } from './nominatim.js';
+export type { GeocodeRequest, GeocodeResult } from './nominatim.js';
+export { FixturePoiProvider } from './fixtures.js';
+export { NotFoundError, ProviderFailureError } from './errors.js';
+export { USER_AGENT, defaultFetch, fetchJson } from './http.js';
+export type { FetchInit, FetchLike, FetchResponse } from './http.js';
