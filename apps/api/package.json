@@ -1,0 +1,35 @@
+{
+  "name": "@lboa/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.2",
+    "@fastify/rate-limit": "^10.2.2",
+    "@lboa/engine": "workspace:*",
+    "@lboa/evidence": "workspace:*",
+    "@lboa/providers": "workspace:*",
+    "@lboa/rules": "workspace:*",
+    "@lboa/shared": "workspace:*",
+    "@lboa/taxonomy": "workspace:*",
+    "@lboa/types": "workspace:*",
+    "drizzle-orm": "^0.38.3",
+    "fastify": "^5.2.1",
+    "ioredis": "^5.4.2",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.2",
+    "tsx": "^4.19.2"
+  }
+}
