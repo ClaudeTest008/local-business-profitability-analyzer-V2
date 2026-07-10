@@ -1,2 +1,2 @@
-// @lboa/ui — populated in its implementation phase
-export {};
+export * from './theme.js';
+export * from './components.js';

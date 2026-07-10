@@ -10,5 +10,12 @@
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@lboa/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "nativewind": "*",
+    "react": "*",
+    "react-native": "*"
+  }
 }
