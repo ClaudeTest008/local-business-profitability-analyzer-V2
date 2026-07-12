@@ -548,11 +548,11 @@ describe('low-signal-quality', () => {
 });
 
 describe('standard rule set invariants', () => {
-  it('contains all 17 rules with unique ids and complete metadata', () => {
+  it('contains all 20 rules with unique ids and complete metadata', () => {
     expect(standardRuleSet.id).toBe('standard');
-    expect(standardRuleSet.version).toBe('1.0.0');
-    expect(standardRuleSet.rules).toHaveLength(17);
-    expect(new Set(standardRuleSet.rules.map((r) => r.id)).size).toBe(17);
+    expect(standardRuleSet.version).toBe('1.1.0');
+    expect(standardRuleSet.rules).toHaveLength(20);
+    expect(new Set(standardRuleSet.rules.map((r) => r.id)).size).toBe(20);
     for (const rule of standardRuleSet.rules) {
       expect(rule.version).toBe('1.0.0');
       expect(rule.description.length).toBeGreaterThan(0);
