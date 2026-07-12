@@ -27,3 +27,23 @@ depresses Confidence — nothing here is hidden from the user.
   app-store delivery pipelines are out of scope here.
 - **PDF export** renders via expo-print (HTML → PDF on device); server-side rendering not included.
 - Population/income providers, multi-user auth, and CRDT sync are deliberate deferrals, not oversights.
+
+## Master-prompt milestone (2026-07-10) — scope reconciliation
+
+The Location Opportunity Analyzer master prompt was adopted as a milestone with two explicit
+overrides (user-confirmed): **ADR-001 stays frozen** — ranking remains Opportunity → Risk → id
+(not Confidence-first), and **no AI anywhere**, including explanation wording (deterministic
+templates instead of AI-phrased prose).
+
+Delivered: map-first home tab, place search (geocode chain), map styles, analysis heat layer,
+taxonomy expanded to 287 types.
+
+Deferred (need native/3rd-party infrastructure not present here):
+
+- **Isochrones** (drive/walk/bike time) — needs a routing engine (OSRM/Valhalla/openrouteservice).
+- **3D buildings, rotate/tilt, terrain shading** — MapLibre GL dev build; react-native-maps
+  covers standard/satellite/hybrid/terrain today.
+- **Polygon/trade-area drawing, measuring, buffers, time slider, side-by-side compare** —
+  planned on top of the MapLibre migration.
+- **PPT/Excel exports** — PDF + CSV ship today; PPTX/XLSX generation would add heavy deps.
+- **Offline tile caching** — requires MapLibre offline packs (dev build).

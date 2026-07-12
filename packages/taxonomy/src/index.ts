@@ -14,7 +14,7 @@ import { homeConstructionTypes } from './business-types/home-construction.js';
 import { petsTypes } from './business-types/pets.js';
 import { fitnessSportsTypes } from './business-types/fitness-sports.js';
 
-export const TAXONOMY_VERSION = '1.0.0';
+export const TAXONOMY_VERSION = '1.1.0';
 
 const businessTypes: BusinessTypeProfile[] = [
   ...foodDrinkTypes,

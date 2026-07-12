@@ -11,7 +11,7 @@ import {
 
 describe('taxonomy dataset', () => {
   it('meets minimum size requirements', () => {
-    expect(taxonomy.businessTypes.length).toBeGreaterThanOrEqual(200);
+    expect(taxonomy.businessTypes.length).toBeGreaterThanOrEqual(287);
     expect(taxonomy.categories.length).toBeGreaterThanOrEqual(12);
     expect(taxonomy.subcategories.length).toBeGreaterThanOrEqual(35);
     expect(taxonomy.version).toBe(TAXONOMY_VERSION);
