@@ -181,11 +181,15 @@ export default function MapScreen() {
           setPin({ lat, lon });
           setReach(null);
         }}
-        onPress={(e) => {
-          if (!drawMode) return;
-          const [lon, lat] = e.nativeEvent.lngLat;
-          setDrawRing((ring) => [...ring, [lon, lat]]);
-        }}
+        // Only attach in draw mode so it can never interfere with long-press pinning.
+        {...(drawMode
+          ? {
+              onPress: (e: { nativeEvent: { lngLat: [number, number] } }) => {
+                const [lon, lat] = e.nativeEvent.lngLat;
+                setDrawRing((ring) => [...ring, [lon, lat]]);
+              },
+            }
+          : {})}
         accessibilityLabel="Map. Long-press to place an analysis pin, or search above."
       >
         <Camera ref={cameraRef} initialViewState={{ center: [13.405, 52.52], zoom: 12 }} />
@@ -302,7 +306,7 @@ export default function MapScreen() {
             {searchError}
           </Text>
         ) : null}
-        <View className="mt-2 flex-row gap-2">
+        <View className="mt-2 flex-row flex-wrap gap-2">
           {MAP_STYLE_KEYS.map((k) => (
             <Button
               key={k}
