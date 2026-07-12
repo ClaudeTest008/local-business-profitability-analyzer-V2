@@ -120,6 +120,26 @@ export async function getAnalysis(id: string): Promise<AnalysisResult | undefine
   return row ? (JSON.parse(row.result_json) as AnalysisResult) : undefined;
 }
 
+/** Pin data for the map heat layer: location + top-ranked opportunity per stored analysis. */
+export async function listAnalysisPins(): Promise<
+  Array<{ id: string; lat: number; lon: number; radiusM: number; topOpportunity: number | null }>
+> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ id: string; result_json: string }>(
+    'SELECT id, result_json FROM analyses ORDER BY created_at DESC LIMIT 100',
+  );
+  return rows.map((r) => {
+    const result = JSON.parse(r.result_json) as AnalysisResult;
+    return {
+      id: result.id,
+      lat: result.request.location.point.lat,
+      lon: result.request.location.point.lon,
+      radiusM: result.request.location.radiusM,
+      topOpportunity: result.recommendations[0]?.scores.opportunity ?? null,
+    };
+  });
+}
+
 export async function listAnalyses(
   projectId?: string,
 ): Promise<Array<{ id: string; projectId: string | null; createdAt: string }>> {

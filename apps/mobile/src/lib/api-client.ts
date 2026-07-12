@@ -38,6 +38,14 @@ const healthSchema = z.object({
 });
 export type Health = z.infer<typeof healthSchema>;
 
+const geocodeResponseSchema = z.object({
+  point: z.object({ lat: z.number(), lon: z.number() }),
+  displayName: z.string(),
+  providerId: z.string(),
+  status: z.string(),
+});
+export type GeocodeResponse = z.infer<typeof geocodeResponseSchema>;
+
 const pushResponseSchema = z.object({
   results: z.array(z.object({ entityId: z.string(), status: z.enum(['accepted', 'conflict']) })),
 });
@@ -60,6 +68,7 @@ export interface ApiClient {
     projectId?: string,
   ): Promise<AnalysisResult>;
   getAnalysis(id: string): Promise<AnalysisResult>;
+  geocode(query: string): Promise<GeocodeResponse>;
   syncPush(envelopes: SyncEnvelope[]): Promise<PushResponse>;
   syncPull(since?: string): Promise<PullResponse>;
   reportCsv(analysisId: string): Promise<string>;
@@ -113,6 +122,8 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch):
         }),
       }),
     getAnalysis: (id) => request(`/api/analyses/${encodeURIComponent(id)}`, analysisResultSchema),
+    geocode: (query) =>
+      request(`/api/geocode?q=${encodeURIComponent(query)}`, geocodeResponseSchema),
     syncPush: (envelopes) =>
       request('/api/sync/push', pushResponseSchema, {
         method: 'POST',

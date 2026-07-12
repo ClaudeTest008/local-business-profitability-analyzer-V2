@@ -14,19 +14,20 @@ function TabIcon({ glyph, focused }: { glyph: string; focused: boolean }) {
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ tabBarLabelStyle: { fontSize: 12 } }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ focused }) => <TabIcon glyph="▦" focused={focused} />,
-        }}
-      />
+    // Map-first product: the map is the home screen; everything launches from it.
+    <Tabs initialRouteName="map" screenOptions={{ tabBarLabelStyle: { fontSize: 12 } }}>
       <Tabs.Screen
         name="map"
         options={{
           title: 'Map',
           tabBarIcon: ({ focused }) => <TabIcon glyph="◎" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Projects',
+          tabBarIcon: ({ focused }) => <TabIcon glyph="▦" focused={focused} />,
         }}
       />
       <Tabs.Screen
