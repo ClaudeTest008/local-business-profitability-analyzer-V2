@@ -38,6 +38,15 @@ const healthSchema = z.object({
 });
 export type Health = z.infer<typeof healthSchema>;
 
+const isochroneResponseSchema = z.object({
+  mode: z.string(),
+  minutes: z.number(),
+  rings: z.array(z.array(z.tuple([z.number(), z.number()]))),
+  providerId: z.string(),
+  status: z.string(),
+});
+export type IsochroneResponse = z.infer<typeof isochroneResponseSchema>;
+
 const geocodeResponseSchema = z.object({
   point: z.object({ lat: z.number(), lon: z.number() }),
   displayName: z.string(),
@@ -69,6 +78,12 @@ export interface ApiClient {
   ): Promise<AnalysisResult>;
   getAnalysis(id: string): Promise<AnalysisResult>;
   geocode(query: string): Promise<GeocodeResponse>;
+  isochrone(
+    lat: number,
+    lon: number,
+    mode: 'pedestrian' | 'bicycle' | 'auto',
+    minutes: number,
+  ): Promise<IsochroneResponse>;
   syncPush(envelopes: SyncEnvelope[]): Promise<PushResponse>;
   syncPull(since?: string): Promise<PullResponse>;
   reportCsv(analysisId: string): Promise<string>;
@@ -124,6 +139,11 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch):
     getAnalysis: (id) => request(`/api/analyses/${encodeURIComponent(id)}`, analysisResultSchema),
     geocode: (query) =>
       request(`/api/geocode?q=${encodeURIComponent(query)}`, geocodeResponseSchema),
+    isochrone: (lat, lon, mode, minutes) =>
+      request(
+        `/api/isochrone?lat=${lat}&lon=${lon}&mode=${mode}&minutes=${minutes}`,
+        isochroneResponseSchema,
+      ),
     syncPush: (envelopes) =>
       request('/api/sync/push', pushResponseSchema, {
         method: 'POST',

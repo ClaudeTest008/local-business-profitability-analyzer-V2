@@ -40,11 +40,13 @@ taxonomy expanded to 287 types.
 
 Deferred (need native/3rd-party infrastructure not present here):
 
-- **Isochrones** (drive/walk/bike time) — needs a routing engine (OSRM/Valhalla/openrouteservice).
+- ~~Isochrones~~ — RESOLVED: `/api/isochrone` resolves walk/bike/drive reach through the
+  provider chain (public Valhalla instance in live mode with 1 req/s politeness, deterministic
+  fixture otherwise); the map renders the contour as a dashed overlay.
 - **3D buildings, rotate/tilt, terrain shading** — MapLibre GL dev build; react-native-maps
   covers standard/satellite/hybrid/terrain today.
-- **Polygon/trade-area drawing, measuring, buffers, time slider, side-by-side compare** —
-  planned on top of the MapLibre migration.
+- ~~Polygon drawing/measuring~~ — RESOLVED: draw mode on the map (tap to add vertices,
+  live km² area). Buffers, time slider, and side-by-side compare remain future work.
 - **PPT/Excel exports** — PDF + CSV ship today; PPTX/XLSX generation would add heavy deps.
 - **Offline tile packs** — MapLibre's OfflineManager is available, but bulk-downloading the
   public OSM/CARTO raster tiles we use would violate their usage policies, and

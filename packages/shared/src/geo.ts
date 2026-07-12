@@ -35,6 +35,24 @@ export function circleAreaKm2(radiusM: number): number {
 }
 
 /**
+ * Approximate area of a lat/lon polygon ring in km² (shoelace on a local
+ * equirectangular projection — good for the sub-city polygons drawn in the app).
+ */
+export function polygonAreaKm2(ring: ReadonlyArray<readonly [number, number]>): number {
+  if (ring.length < 3) return 0;
+  const meanLat = ring.reduce((acc, [, lat]) => acc + lat, 0) / ring.length;
+  const kmPerDegLat = (Math.PI / 180) * EARTH_RADIUS_KM;
+  const kmPerDegLon = kmPerDegLat * Math.cos((meanLat * Math.PI) / 180);
+  let sum = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [lon1, lat1] = ring[i]!;
+    const [lon2, lat2] = ring[(i + 1) % ring.length]!;
+    sum += lon1 * kmPerDegLon * (lat2 * kmPerDegLat) - lon2 * kmPerDegLon * (lat1 * kmPerDegLat);
+  }
+  return Math.abs(sum) / 2;
+}
+
+/**
  * Closed GeoJSON polygon ring approximating a circle of radiusM around center,
  * as [lon, lat] pairs (GeoJSON coordinate order). Deterministic.
  */

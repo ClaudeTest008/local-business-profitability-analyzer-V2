@@ -14,6 +14,12 @@ export { NominatimGeocodeProvider } from './nominatim.js';
 export type { GeocodeRequest, GeocodeResult } from './nominatim.js';
 export { FixturePoiProvider } from './fixtures.js';
 export { FixtureGeocodeProvider } from './fixture-geocode.js';
+export {
+  FixtureIsochroneProvider,
+  ISOCHRONE_MODES,
+  ValhallaIsochroneProvider,
+} from './isochrone.js';
+export type { IsochroneMode, IsochroneRequest, IsochroneResult } from './isochrone.js';
 export { NotFoundError, ProviderFailureError } from './errors.js';
 export { USER_AGENT, defaultFetch, fetchJson } from './http.js';
 export type { FetchInit, FetchLike, FetchResponse } from './http.js';

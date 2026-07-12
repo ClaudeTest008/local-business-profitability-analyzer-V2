@@ -11,15 +11,22 @@ import {
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GeoPoint } from '@lboa/types';
-import { circlePolygonCoords } from '@lboa/shared';
+import { circlePolygonCoords, polygonAreaKm2 } from '@lboa/shared';
 import { Button, Card } from '@lboa/ui';
 import { useApi, useResolvedTheme } from '../../src/lib/hooks';
+import type { IsochroneResponse } from '../../src/lib/api-client';
 import { listAnalysisPins, saveAnalysis } from '../../src/lib/db';
 import { formatCoords, formatRadius, opportunityTint } from '../../src/lib/format';
 import { MAP_STYLES, MAP_STYLE_KEYS, type MapStyleKey } from '../../src/lib/map-styles';
 import { STEP_LABEL, useAnalysisProgress } from '../../src/stores/analysis';
 
 const RADII = [300, 500, 800, 1500] as const;
+const REACH_MODES = [
+  { mode: 'pedestrian', label: 'Walk' },
+  { mode: 'bicycle', label: 'Bike' },
+  { mode: 'auto', label: 'Drive' },
+] as const;
+const REACH_MINUTES = [5, 15, 30] as const;
 
 function circleFeature(
   point: GeoPoint,
@@ -45,6 +52,12 @@ export default function MapScreen() {
   const [search, setSearch] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [heatVisible, setHeatVisible] = useState(true);
+  const [reach, setReach] = useState<IsochroneResponse | null>(null);
+  const [reachMode, setReachMode] = useState<'pedestrian' | 'bicycle' | 'auto'>('pedestrian');
+  const [reachMinutes, setReachMinutes] = useState<number>(15);
+  const [reachBusy, setReachBusy] = useState(false);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawRing, setDrawRing] = useState<Array<[number, number]>>([]);
 
   const pins = useQuery({ queryKey: ['analysis-pins'], queryFn: listAnalysisPins });
   // Default style follows the app theme until the user picks one explicitly.
@@ -112,6 +125,52 @@ export default function MapScreen() {
 
   const busy = progress.step !== 'idle' && progress.step !== 'error' && progress.step !== 'done';
 
+  const fetchReach = async () => {
+    if (!pin) return;
+    setReachBusy(true);
+    try {
+      setReach(await api.isochrone(pin.lat, pin.lon, reachMode, reachMinutes));
+    } catch (e) {
+      setSearchError(e instanceof Error ? e.message : 'Reach lookup failed');
+    } finally {
+      setReachBusy(false);
+    }
+  };
+
+  const reachCollection = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: reach
+        ? [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'Polygon', coordinates: reach.rings },
+            },
+          ]
+        : [],
+    }),
+    [reach],
+  );
+
+  const drawCollection = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features:
+        drawRing.length >= 3
+          ? [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'Polygon', coordinates: [[...drawRing, drawRing[0]!]] },
+              },
+            ]
+          : [],
+    }),
+    [drawRing],
+  );
+  const drawAreaKm2 = drawRing.length >= 3 ? polygonAreaKm2(drawRing) : null;
+
   return (
     <View className="flex-1">
       <MapLibreMap
@@ -120,6 +179,12 @@ export default function MapScreen() {
         onLongPress={(e) => {
           const [lon, lat] = e.nativeEvent.lngLat;
           setPin({ lat, lon });
+          setReach(null);
+        }}
+        onPress={(e) => {
+          if (!drawMode) return;
+          const [lon, lat] = e.nativeEvent.lngLat;
+          setDrawRing((ring) => [...ring, [lon, lat]]);
         }}
         accessibilityLabel="Map. Long-press to place an analysis pin, or search above."
       >
@@ -139,6 +204,38 @@ export default function MapScreen() {
             />
           </GeoJSONSource>
         ) : null}
+
+        {reach ? (
+          <GeoJSONSource id="reach" data={reachCollection}>
+            <Layer id="reach-fill" type="fill" paint={{ 'fill-color': 'rgba(124,58,237,0.14)' }} />
+            <Layer
+              id="reach-stroke"
+              type="line"
+              paint={{
+                'line-color': 'rgba(124,58,237,0.9)',
+                'line-width': 2,
+                'line-dasharray': [2, 1],
+              }}
+            />
+          </GeoJSONSource>
+        ) : null}
+
+        {drawRing.length >= 3 ? (
+          <GeoJSONSource id="draw" data={drawCollection}>
+            <Layer id="draw-fill" type="fill" paint={{ 'fill-color': 'rgba(234,88,12,0.15)' }} />
+            <Layer
+              id="draw-stroke"
+              type="line"
+              paint={{ 'line-color': 'rgba(234,88,12,0.9)', 'line-width': 2 }}
+            />
+          </GeoJSONSource>
+        ) : null}
+
+        {drawRing.map(([lon, lat], i) => (
+          <Marker key={`d-${i}`} lngLat={[lon, lat]}>
+            <View className="h-2.5 w-2.5 rounded-full border border-white bg-orange-600" />
+          </Marker>
+        ))}
 
         {pin ? (
           <GeoJSONSource id="pin-radius" data={pinCollection}>
@@ -219,7 +316,36 @@ export default function MapScreen() {
             tone={heatVisible ? 'primary' : 'secondary'}
             onPress={() => setHeatVisible((v) => !v)}
           />
+          <Button
+            label={drawMode ? 'Drawing…' : 'Draw'}
+            tone={drawMode ? 'primary' : 'secondary'}
+            onPress={() => {
+              setDrawMode((d) => !d);
+              if (drawMode) return;
+              setDrawRing([]);
+            }}
+          />
         </View>
+        {drawMode || drawRing.length > 0 ? (
+          <View className="mt-2 flex-row items-center gap-2">
+            <Text
+              className="flex-1 rounded-lg bg-white/90 px-2 py-1 text-xs text-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-200"
+              accessibilityLiveRegion="polite"
+            >
+              {drawRing.length < 3
+                ? `Tap the map to add vertices (${drawRing.length})`
+                : `Area: ${Math.round(drawAreaKm2! * 100) / 100} km² (${drawRing.length} vertices)`}
+            </Text>
+            <Button
+              label="Clear"
+              tone="secondary"
+              onPress={() => {
+                setDrawRing([]);
+                setDrawMode(false);
+              }}
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* Bottom sheet: analysis launcher */}
@@ -255,6 +381,41 @@ export default function MapScreen() {
                   connectivity. Analysis needs a network connection.
                 </Text>
               ) : null}
+              <View className="mb-2 flex-row gap-2">
+                {REACH_MODES.map((m) => (
+                  <View key={m.mode} className="flex-1">
+                    <Button
+                      label={m.label}
+                      tone={reachMode === m.mode ? 'primary' : 'secondary'}
+                      onPress={() => setReachMode(m.mode)}
+                    />
+                  </View>
+                ))}
+                {REACH_MINUTES.map((min) => (
+                  <View key={min} className="flex-1">
+                    <Button
+                      label={`${min}m`}
+                      tone={reachMinutes === min ? 'primary' : 'secondary'}
+                      onPress={() => setReachMinutes(min)}
+                    />
+                  </View>
+                ))}
+              </View>
+              <View className="mb-2 flex-row gap-2">
+                <View className="flex-1">
+                  <Button
+                    label={reachBusy ? 'Loading reach…' : reach ? 'Update reach' : 'Show reach'}
+                    tone="secondary"
+                    onPress={() => void fetchReach()}
+                    disabled={reachBusy}
+                  />
+                </View>
+                {reach ? (
+                  <View className="flex-1">
+                    <Button label="Hide reach" tone="secondary" onPress={() => setReach(null)} />
+                  </View>
+                ) : null}
+              </View>
               <Button label="Analyze here" onPress={() => void runAnalysis()} disabled={busy} />
             </>
           ) : (

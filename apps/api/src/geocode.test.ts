@@ -58,6 +58,32 @@ describe('GET /api/geocode', () => {
   });
 });
 
+describe('GET /api/isochrone', () => {
+  it('returns a deterministic closed contour scaled by mode', async () => {
+    const res = await app.inject({
+      url: '/api/isochrone?lat=52.52&lon=13.405&mode=pedestrian&minutes=15',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as {
+      rings: Array<Array<[number, number]>>;
+      providerId: string;
+      mode: string;
+    };
+    expect(body.providerId).toBe('fixture-isochrone');
+    const ring = body.rings[0]!;
+    expect(ring[0]).toEqual(ring[ring.length - 1]);
+    const res2 = await app.inject({
+      url: '/api/isochrone?lat=52.52&lon=13.405&mode=pedestrian&minutes=15',
+    });
+    expect((res2.json() as { rings: unknown }).rings).toEqual(body.rings);
+  });
+
+  it('rejects out-of-range minutes', async () => {
+    const res = await app.inject({ url: '/api/isochrone?lat=52.52&lon=13.405&minutes=90' });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe('POST /api/analyze — scenario overrides', () => {
   it('applies overrides and surfaces scenario assumption evidence', async () => {
     const res = await app.inject({

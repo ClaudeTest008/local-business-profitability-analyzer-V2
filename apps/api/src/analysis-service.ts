@@ -9,14 +9,18 @@ import type {
 import { bboxAround } from '@lboa/shared';
 import {
   FixtureGeocodeProvider,
+  FixtureIsochroneProvider,
   FixturePoiProvider,
   NominatimGeocodeProvider,
   OverpassPoiProvider,
   ProviderChain,
   TokenBucketRateLimiter,
+  ValhallaIsochroneProvider,
   type CacheStore,
   type GeocodeRequest,
   type GeocodeResult,
+  type IsochroneRequest,
+  type IsochroneResult,
   type OverpassRequest,
 } from '@lboa/providers';
 import { fieldObservationToEvidence, makePoiEvidence } from '@lboa/evidence';
@@ -29,11 +33,13 @@ import { FRESH_TTL_MS, STALE_TTL_MS } from './cache.js';
 
 export type PoiChain = ProviderChain<OverpassRequest, Poi[]>;
 export type GeocodeChain = ProviderChain<GeocodeRequest, GeocodeResult>;
+export type IsochroneChain = ProviderChain<IsochroneRequest, IsochroneResult>;
 
 export interface AnalysisDeps {
   repo: Repo;
   chain: PoiChain;
   geocode: GeocodeChain;
+  isochrone: IsochroneChain;
 }
 
 /** Everything the route layer needs. */
@@ -76,6 +82,30 @@ export function buildGeocodeChain(env: Env, cache: CacheStore): GeocodeChain {
     staleTtlMs: STALE_TTL_MS,
     clock: Date.now,
     // Nominatim's public usage policy is 1 req/s (ADR-002); the fixture needs no limiter.
+    ...(live
+      ? {
+          rateLimiter: new TokenBucketRateLimiter({
+            capacity: 1,
+            refillPerSecond: 1,
+            clock: Date.now,
+          }),
+        }
+      : {}),
+  });
+}
+
+/** Same pattern as geocode: public Valhalla in live mode with polite rate limiting. */
+export function buildIsochroneChain(env: Env, cache: CacheStore): IsochroneChain {
+  const fixture = new FixtureIsochroneProvider();
+  const live = env.DATA_MODE === 'live';
+  return new ProviderChain({
+    ...(live
+      ? { primary: new ValhallaIsochroneProvider(), fallbacks: [fixture] }
+      : { primary: fixture, fallbacks: [] }),
+    cache,
+    freshTtlMs: FRESH_TTL_MS,
+    staleTtlMs: STALE_TTL_MS,
+    clock: Date.now,
     ...(live
       ? {
           rateLimiter: new TokenBucketRateLimiter({

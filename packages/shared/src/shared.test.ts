@@ -4,6 +4,7 @@ import {
   circleAreaKm2,
   circlePolygonCoords,
   haversineKm,
+  polygonAreaKm2,
   isWithinRadius,
 } from './geo.js';
 import { clamp, clamp01, linearScale, round, saturating, sum, weightedMean } from './stats.js';
@@ -34,6 +35,12 @@ describe('geo', () => {
 
   it('circle area', () => {
     expect(circleAreaKm2(1000)).toBeCloseTo(Math.PI, 5);
+  });
+
+  it('polygonAreaKm2: circle ring area matches analytic circle area', () => {
+    const ring = circlePolygonCoords(berlin, 1000, 128);
+    expect(polygonAreaKm2(ring)).toBeCloseTo(Math.PI, 1);
+    expect(polygonAreaKm2([[13.4, 52.5]])).toBe(0);
   });
 
   it('circlePolygonCoords: closed ring, points at radius distance', () => {
