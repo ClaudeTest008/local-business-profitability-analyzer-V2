@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { locationSchema } from './location.js';
 import { evidenceSchema } from './evidence.js';
-import { signalSchema } from './signal.js';
+import { signalKeySchema, signalSchema } from './signal.js';
 import { scoreBreakdownEntrySchema, scoresSchema, verdictSchema } from './scoring.js';
 import { providerStatusSchema } from './provider.js';
 
@@ -13,8 +13,24 @@ export const analysisRequestSchema = z.object({
   categoryIds: z.array(z.string()).optional(),
   /** Extra field-research evidence collected on site, merged with provider evidence. */
   fieldEvidenceIds: z.array(z.string()).optional(),
+  /**
+   * Scenario simulator: what-if signal values. Each override replaces the derived signal
+   * for ALL business types, is backed by explicit assumption evidence (never hidden),
+   * and — being part of the request — changes the analysis id deterministically.
+   */
+  scenarioOverrides: z
+    .array(
+      z.object({
+        key: signalKeySchema,
+        value: z.number().finite(),
+        rationale: z.string().min(1).max(300),
+      }),
+    )
+    .max(10)
+    .optional(),
 });
 export type AnalysisRequest = z.infer<typeof analysisRequestSchema>;
+export type ScenarioOverride = NonNullable<AnalysisRequest['scenarioOverrides']>[number];
 
 export const explanationSchema = z.object({
   verdict: verdictSchema,

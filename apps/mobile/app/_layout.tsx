@@ -43,6 +43,7 @@ export default function RootLayout() {
           <Stack.Screen name="analysis/[id]/index" options={{ title: 'Results' }} />
           <Stack.Screen name="analysis/[id]/type/[typeId]" options={{ title: 'Business Detail' }} />
           <Stack.Screen name="analysis/[id]/evidence" options={{ title: 'Evidence Explorer' }} />
+          <Stack.Screen name="analysis/[id]/scenario" options={{ title: 'Scenario Simulator' }} />
           <Stack.Screen name="project/[id]" options={{ title: 'Project' }} />
         </Stack>
       </View>

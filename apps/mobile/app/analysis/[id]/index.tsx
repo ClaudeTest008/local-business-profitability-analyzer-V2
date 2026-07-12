@@ -122,6 +122,13 @@ export default function AnalysisResults() {
               onPress={() => router.push(`/analysis/${result.id}/evidence`)}
             />
           </View>
+          <View className="flex-1">
+            <Button
+              label="What-if"
+              tone="secondary"
+              onPress={() => router.push(`/analysis/${result.id}/scenario`)}
+            />
+          </View>
         </View>
       </Card>
 

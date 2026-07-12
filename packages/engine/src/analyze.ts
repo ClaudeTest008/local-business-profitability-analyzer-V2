@@ -10,12 +10,14 @@ import type {
   SignalMap,
   Taxonomy,
 } from '@lboa/types';
+import { SIGNAL_UNIT_BY_KEY } from '@lboa/types';
 import { contentHashId } from '@lboa/shared';
 import {
   applyAssumptionDefaults,
   deriveBusinessTypeSignals,
   deriveLocationSignals,
   detectGaps,
+  makeAssumptionEvidence,
 } from '@lboa/evidence';
 import { evaluateRules } from '@lboa/rules';
 import { buildExplanation, computeScores, rank, verdictFor, type ScoredType } from '@lboa/scoring';
@@ -52,13 +54,36 @@ export function analyze(inputs: EngineInputs): AnalysisResult {
   const baseSignals: SignalMap = applied.signals;
   let evidence: Evidence[] = applied.evidence;
 
+  // Scenario simulator: overrides replace derived signals for every business type,
+  // each backed by explicit assumption evidence (kind never hidden, quality capped).
+  const overrideSignals: SignalMap = {};
+  for (const o of request.scenarioOverrides ?? []) {
+    const ev = makeAssumptionEvidence({
+      key: o.key,
+      value: o.value,
+      rationale: `scenario: ${o.rationale}`,
+      providerId: 'scenario-simulator',
+      method: 'user what-if override',
+      reliability: 0.5,
+    });
+    evidence = [...evidence, ev];
+    overrideSignals[o.key] = {
+      key: o.key,
+      value: o.value,
+      unit: SIGNAL_UNIT_BY_KEY[o.key],
+      quality: 0.5,
+      method: `scenario override: ${o.rationale}`,
+      evidenceIds: [ev.id],
+    };
+  }
+
   const profiles = selectBusinessTypes(taxonomy, request);
   const gapEvidenceById = new Map<string, Evidence>();
   const scored: ScoredType[] = [];
 
   for (const profile of profiles) {
     const typeSignals = deriveBusinessTypeSignals(location, evidence, profile, osmTagsByTypeId);
-    const signals: SignalMap = { ...baseSignals, ...typeSignals };
+    const signals: SignalMap = { ...baseSignals, ...typeSignals, ...overrideSignals };
 
     for (const gap of detectGaps(profile.requiredSignals, signals)) {
       gapEvidenceById.set(gap.id, gap);
@@ -105,8 +130,11 @@ export function analyze(inputs: EngineInputs): AnalysisResult {
     explanation: buildExplanation(s, evidence, 'disqualified'),
   }));
 
-  // Location-level signals go in the result; per-type competitor signals surface via rationales.
-  const signals: Signal[] = Object.values(baseSignals).sort((a, b) => (a.key < b.key ? -1 : 1));
+  // Location-level signals (with scenario overrides applied) go in the result;
+  // per-type competitor signals surface via rationales.
+  const signals: Signal[] = Object.values({ ...baseSignals, ...overrideSignals }).sort((a, b) =>
+    a.key < b.key ? -1 : 1,
+  );
 
   return {
     id: contentHashId('analysis', {

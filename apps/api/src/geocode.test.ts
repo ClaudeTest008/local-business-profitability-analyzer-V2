@@ -57,3 +57,47 @@ describe('GET /api/geocode', () => {
     expect((res.json() as { error: string }).error).toBe('validation_failed');
   });
 });
+
+describe('POST /api/analyze — scenario overrides', () => {
+  it('applies overrides and surfaces scenario assumption evidence', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/analyze',
+      payload: {
+        request: {
+          location: { point: { lat: 52.52, lon: 13.405 }, radiusM: 800 },
+          scenarioOverrides: [
+            { key: 'footTraffic', value: 95, rationale: 'planned pedestrian zone' },
+          ],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as {
+      signals: Array<{ key: string; value: number; method: string }>;
+      evidence: Array<{ kind: string; source: { providerId: string } }>;
+    };
+    const ft = body.signals.find((s) => s.key === 'footTraffic');
+    expect(ft?.value).toBe(95);
+    expect(ft?.method).toContain('scenario override');
+    expect(
+      body.evidence.some(
+        (e) => e.kind === 'assumption' && e.source.providerId === 'scenario-simulator',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects unknown signal keys', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/analyze',
+      payload: {
+        request: {
+          location: { point: { lat: 52.52, lon: 13.405 }, radiusM: 800 },
+          scenarioOverrides: [{ key: 'vibes', value: 100, rationale: 'nope' }],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

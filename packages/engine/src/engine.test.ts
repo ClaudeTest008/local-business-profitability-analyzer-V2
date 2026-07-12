@@ -205,6 +205,42 @@ describe('analyze — gaps instead of fabrication', () => {
   });
 });
 
+describe('analyze — scenario simulator', () => {
+  const overrides = [
+    { key: 'parkingAvailability' as const, value: 90, rationale: 'new parking garage planned' },
+  ];
+
+  it('override replaces the derived signal and cites scenario evidence', () => {
+    const result = analyze(
+      makeInputs({
+        request: { location: { point: CENTER, radiusM: 800 }, scenarioOverrides: overrides },
+      }),
+    );
+    const signal = result.signals.find((s) => s.key === 'parkingAvailability');
+    expect(signal?.value).toBe(90);
+    expect(signal?.method).toContain('scenario override');
+    const scenarioEv = result.evidence.filter((e) => e.source.providerId === 'scenario-simulator');
+    expect(scenarioEv.length).toBe(1);
+    expect(scenarioEv[0]!.kind).toBe('assumption');
+    expect(signal?.evidenceIds).toEqual([scenarioEv[0]!.id]);
+  });
+
+  it('changes scores versus baseline and remains deterministic', () => {
+    const base = analyze(makeInputs());
+    const req = { location: { point: CENTER, radiusM: 800 }, scenarioOverrides: overrides };
+    const a = analyze(makeInputs({ request: req }));
+    const b = analyze(makeInputs({ request: req }));
+    expect(b).toEqual(a);
+    expect(a.id).not.toBe(base.id); // request is part of the analysis identity
+    // parking-sensitive types must shift opportunity somewhere in the ranking
+    const changed = a.recommendations.some((r) => {
+      const before = base.recommendations.find((x) => x.businessTypeId === r.businessTypeId);
+      return before && before.scores.opportunity !== r.scores.opportunity;
+    });
+    expect(changed).toBe(true);
+  });
+});
+
 describe('selectBusinessTypes', () => {
   it('filters by explicit ids and by category, sorted by id', () => {
     const all = selectBusinessTypes(taxonomy, { location: { point: CENTER, radiusM: 800 } });

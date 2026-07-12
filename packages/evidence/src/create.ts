@@ -50,14 +50,21 @@ export function makeAssumptionEvidence(input: {
   key: SignalKey;
   value: number;
   rationale: string;
+  /** Defaults to the configured-defaults provider; scenario overrides pass their own. */
+  providerId?: string;
+  method?: string;
+  reliability?: number;
 }): Evidence {
   return finalize({
     kind: 'assumption',
     signalKeys: [input.key],
-    source: { providerId: 'assumption-defaults', method: 'configured default value' },
+    source: {
+      providerId: input.providerId ?? 'assumption-defaults',
+      method: input.method ?? 'configured default value',
+    },
     summary: `Assumed ${input.key} = ${input.value}: ${input.rationale}`,
     payload: { key: input.key, value: input.value },
-    reliability: 0.3,
+    reliability: input.reliability ?? 0.3,
   });
 }
 
