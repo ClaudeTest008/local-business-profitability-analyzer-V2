@@ -1,5 +1,11 @@
-import type { PropsWithChildren } from 'react';
+import { useEffect, type PropsWithChildren } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import type { EvidenceKind, SyncStatus, Verdict } from '@lboa/types';
 import {
   EVIDENCE_KIND_CLASS,
@@ -85,6 +91,16 @@ export function Button({
   );
 }
 
+/** Animated fill used by ScoreBar/ConfidenceMeter — eases in on mount (60fps, UI thread). */
+function AnimatedFill({ pct, className }: { pct: number; className: string }) {
+  const width = useSharedValue(0);
+  useEffect(() => {
+    width.value = withTiming(pct, { duration: 600 });
+  }, [pct, width]);
+  const style = useAnimatedStyle(() => ({ width: `${width.value}%` }));
+  return <Animated.View className={className} style={style} />;
+}
+
 /** Score bar: value always shown as text — never color-only (WCAG AA). */
 export function ScoreBar({
   label,
@@ -112,7 +128,7 @@ export function ScoreBar({
         </Text>
       </View>
       <View className="h-2 rounded-full bg-neutral-200 dark:bg-neutral-800">
-        <View className={`h-2 rounded-full ${fill}`} style={{ width: `${pct}%` }} />
+        <AnimatedFill pct={pct} className={`h-2 rounded-full ${fill}`} />
       </View>
     </View>
   );
@@ -135,7 +151,7 @@ export function ConfidenceMeter({ confidence }: { confidence: number }) {
         </Text>
       </View>
       <View className="h-2 rounded-full bg-neutral-200 dark:bg-neutral-800">
-        <View className="h-2 rounded-full bg-sky-600" style={{ width: `${pct}%` }} />
+        <AnimatedFill pct={pct} className="h-2 rounded-full bg-sky-600" />
       </View>
     </View>
   );
@@ -183,6 +199,36 @@ export function SyncStatusDot({ status }: { status: SyncStatus }) {
 }
 
 export function RecommendationCard({
+  name,
+  category,
+  rank,
+  verdict,
+  opportunity,
+  risk,
+  confidence,
+  headline,
+  onPress,
+}: {
+  name: string;
+  category: string;
+  rank: number;
+  verdict: Verdict;
+  opportunity: number;
+  risk: number;
+  confidence: number;
+  headline: string;
+  onPress: () => void;
+}) {
+  return (
+    <Animated.View entering={FadeInDown.duration(300).delay(Math.min(rank, 8) * 40)}>
+      <RecommendationCardInner
+        {...{ name, category, rank, verdict, opportunity, risk, confidence, headline, onPress }}
+      />
+    </Animated.View>
+  );
+}
+
+function RecommendationCardInner({
   name,
   category,
   rank,

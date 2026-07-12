@@ -15,6 +15,22 @@ pnpm --filter @lboa/mobile start   # Expo dev server
 - Set the API base URL in Settings when testing on a physical device (use your machine's LAN IP,
   not localhost).
 
+## Android APK (local build, no EAS account needed)
+
+```bash
+cd apps/mobile
+npx expo prebuild --platform android --no-install   # generates android/ (gitignored)
+cd android
+# Windows: ensure JAVA_HOME → JDK 17, ANDROID_HOME → %LOCALAPPDATA%\Android\Sdk
+./gradlew assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+Debug APKs bundle no JS — they load from the Metro dev server (`pnpm --filter @lboa/mobile start`
+on the same network). For a self-contained build use `assembleRelease` (auto-signed with the
+debug keystore unless you configure signing).
+
 ## Offline behavior (ADR-003)
 
 - Projects and field observations write to on-device SQLite first and queue in an outbox.
