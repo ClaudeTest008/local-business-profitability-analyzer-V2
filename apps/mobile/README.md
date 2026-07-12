@@ -31,6 +31,14 @@ Debug APKs bundle no JS — they load from the Metro dev server (`pnpm --filter 
 on the same network). For a self-contained build use `assembleRelease` (auto-signed with the
 debug keystore unless you configure signing).
 
+**Windows MAX_PATH gotcha:** ninja fails with "Filename longer than 260 characters" when the
+repo path is long. Map a short drive first and build from there:
+
+```bat
+subst L: C:\path\to\local-business-profitability-analyzer-V2
+cd /d L:\apps\mobile\android && gradlew assembleDebug
+```
+
 ## Offline behavior (ADR-003)
 
 - Projects and field observations write to on-device SQLite first and queue in an outbox.
