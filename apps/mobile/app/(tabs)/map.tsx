@@ -1,41 +1,83 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
-import MapView, { Circle, Marker, type LongPressEvent, type MapType } from 'react-native-maps';
+import {
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Map as MapLibreMap,
+  Marker,
+  type CameraRef,
+} from '@maplibre/maplibre-react-native';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GeoPoint } from '@lboa/types';
+import { circlePolygonCoords } from '@lboa/shared';
 import { Button, Card } from '@lboa/ui';
-import { useApi } from '../../src/lib/hooks';
+import { useApi, useResolvedTheme } from '../../src/lib/hooks';
 import { listAnalysisPins, saveAnalysis } from '../../src/lib/db';
 import { formatCoords, formatRadius, opportunityTint } from '../../src/lib/format';
+import { MAP_STYLES, MAP_STYLE_KEYS, type MapStyleKey } from '../../src/lib/map-styles';
 import { STEP_LABEL, useAnalysisProgress } from '../../src/stores/analysis';
 
 const RADII = [300, 500, 800, 1500] as const;
-const MAP_TYPES: Array<{ type: MapType; label: string }> = [
-  { type: 'standard', label: 'Map' },
-  { type: 'satellite', label: 'Satellite' },
-  { type: 'hybrid', label: 'Hybrid' },
-  { type: 'terrain', label: 'Terrain' },
-];
+
+function circleFeature(
+  point: GeoPoint,
+  radiusM: number,
+  properties: Record<string, unknown>,
+): GeoJSON.Feature {
+  return {
+    type: 'Feature',
+    properties,
+    geometry: { type: 'Polygon', coordinates: [circlePolygonCoords(point, radiusM)] },
+  };
+}
 
 export default function MapScreen() {
   const api = useApi();
   const qc = useQueryClient();
+  const theme = useResolvedTheme();
   const progress = useAnalysisProgress();
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const [pin, setPin] = useState<GeoPoint | null>(null);
   const [radiusM, setRadiusM] = useState<number>(800);
-  const [mapType, setMapType] = useState<MapType>('standard');
+  const [styleKey, setStyleKey] = useState<MapStyleKey | null>(null);
   const [search, setSearch] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [heatVisible, setHeatVisible] = useState(true);
 
   const pins = useQuery({ queryKey: ['analysis-pins'], queryFn: listAnalysisPins });
+  // Default style follows the app theme until the user picks one explicitly.
+  const activeStyle: MapStyleKey = styleKey ?? (theme === 'dark' ? 'dark' : 'standard');
 
-  const onLongPress = (e: LongPressEvent) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setPin({ lat: latitude, lon: longitude });
-  };
+  const heatCollection = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: (pins.data ?? []).map((p) => {
+        const tint = opportunityTint(p.topOpportunity);
+        return circleFeature({ lat: p.lat, lon: p.lon }, p.radiusM, {
+          fill: tint.fill,
+          stroke: tint.stroke,
+        });
+      }),
+    }),
+    [pins.data],
+  );
+
+  const pinCollection = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: pin
+        ? [
+            circleFeature(pin, radiusM, {
+              fill: 'rgba(29,78,216,0.15)',
+              stroke: 'rgba(29,78,216,0.8)',
+            }),
+          ]
+        : [],
+    }),
+    [pin, radiusM],
+  );
 
   const onSearch = async () => {
     const q = search.trim();
@@ -45,15 +87,7 @@ export default function MapScreen() {
       const res = await api.geocode(q);
       const target = { lat: res.point.lat, lon: res.point.lon };
       setPin(target);
-      mapRef.current?.animateToRegion(
-        {
-          latitude: target.lat,
-          longitude: target.lon,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        },
-        600,
-      );
+      cameraRef.current?.flyTo({ center: [target.lon, target.lat], zoom: 14, duration: 700 });
     } catch (e) {
       setSearchError(e instanceof Error ? e.message : 'Search failed');
     }
@@ -80,62 +114,73 @@ export default function MapScreen() {
 
   return (
     <View className="flex-1">
-      <MapView
-        ref={mapRef}
+      <MapLibreMap
         style={{ flex: 1 }}
-        mapType={mapType}
-        initialRegion={{
-          latitude: 52.52,
-          longitude: 13.405,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
+        mapStyle={MAP_STYLES[activeStyle]}
+        onLongPress={(e) => {
+          const [lon, lat] = e.nativeEvent.lngLat;
+          setPin({ lat, lon });
         }}
-        onLongPress={onLongPress}
         accessibilityLabel="Map. Long-press to place an analysis pin, or search above."
       >
-        {heatVisible
-          ? (pins.data ?? []).map((p) => {
-              const tint = opportunityTint(p.topOpportunity);
-              return (
-                <Circle
-                  key={p.id}
-                  center={{ latitude: p.lat, longitude: p.lon }}
-                  radius={p.radiusM}
-                  strokeColor={tint.stroke}
-                  fillColor={tint.fill}
-                />
-              );
-            })
-          : null}
+        <Camera ref={cameraRef} initialViewState={{ center: [13.405, 52.52], zoom: 12 }} />
+
+        {heatVisible && heatCollection.features.length > 0 ? (
+          <GeoJSONSource id="heat" data={heatCollection}>
+            <Layer
+              id="heat-fill"
+              type="fill"
+              paint={{ 'fill-color': ['get', 'fill'], 'fill-opacity': 0.9 }}
+            />
+            <Layer
+              id="heat-stroke"
+              type="line"
+              paint={{ 'line-color': ['get', 'stroke'], 'line-width': 1.5 }}
+            />
+          </GeoJSONSource>
+        ) : null}
+
+        {pin ? (
+          <GeoJSONSource id="pin-radius" data={pinCollection}>
+            <Layer
+              id="pin-fill"
+              type="fill"
+              paint={{ 'fill-color': ['get', 'fill'], 'fill-opacity': 0.9 }}
+            />
+            <Layer
+              id="pin-stroke"
+              type="line"
+              paint={{ 'line-color': ['get', 'stroke'], 'line-width': 2 }}
+            />
+          </GeoJSONSource>
+        ) : null}
+
         {(pins.data ?? []).map((p) => (
           <Marker
-            key={`m-${p.id}`}
-            coordinate={{ latitude: p.lat, longitude: p.lon }}
-            title={
-              p.topOpportunity !== null
-                ? `Top opportunity ${p.topOpportunity}/100 (${opportunityTint(p.topOpportunity).label})`
-                : 'Analyzed location'
-            }
-            opacity={0.7}
-            onCalloutPress={() => router.push(`/analysis/${p.id}`)}
-          />
+            key={p.id}
+            lngLat={[p.lon, p.lat]}
+            onPress={() => router.push(`/analysis/${p.id}`)}
+          >
+            <View
+              className="h-4 w-4 rounded-full border-2 border-white bg-indigo-600"
+              accessibilityLabel={
+                p.topOpportunity !== null
+                  ? `Analyzed location, top opportunity ${p.topOpportunity} of 100`
+                  : 'Analyzed location'
+              }
+            />
+          </Marker>
         ))}
+
         {pin ? (
-          <>
-            <Marker
-              coordinate={{ latitude: pin.lat, longitude: pin.lon }}
-              title="Analysis location"
-              pinColor="blue"
+          <Marker lngLat={[pin.lon, pin.lat]}>
+            <View
+              className="h-5 w-5 rounded-full border-2 border-white bg-blue-700"
+              accessibilityLabel="Analysis location pin"
             />
-            <Circle
-              center={{ latitude: pin.lat, longitude: pin.lon }}
-              radius={radiusM}
-              strokeColor="rgba(29,78,216,0.8)"
-              fillColor="rgba(29,78,216,0.15)"
-            />
-          </>
+          </Marker>
         ) : null}
-      </MapView>
+      </MapLibreMap>
 
       {/* Floating search + map controls */}
       <View className="absolute left-3 right-3 top-3">
@@ -161,12 +206,12 @@ export default function MapScreen() {
           </Text>
         ) : null}
         <View className="mt-2 flex-row gap-2">
-          {MAP_TYPES.map((m) => (
+          {MAP_STYLE_KEYS.map((k) => (
             <Button
-              key={m.type}
-              label={m.label}
-              tone={mapType === m.type ? 'primary' : 'secondary'}
-              onPress={() => setMapType(m.type)}
+              key={k}
+              label={k}
+              tone={activeStyle === k ? 'primary' : 'secondary'}
+              onPress={() => setStyleKey(k)}
             />
           ))}
           <Button

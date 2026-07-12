@@ -33,3 +33,22 @@ export function circleAreaKm2(radiusM: number): number {
   const rKm = radiusM / 1000;
   return Math.PI * rKm * rKm;
 }
+
+/**
+ * Closed GeoJSON polygon ring approximating a circle of radiusM around center,
+ * as [lon, lat] pairs (GeoJSON coordinate order). Deterministic.
+ */
+export function circlePolygonCoords(
+  center: GeoPoint,
+  radiusM: number,
+  steps = 64,
+): Array<[number, number]> {
+  const latDelta = (radiusM / 1000 / EARTH_RADIUS_KM) * (180 / Math.PI);
+  const lonDelta = latDelta / Math.max(Math.cos((center.lat * Math.PI) / 180), 1e-6);
+  const ring: Array<[number, number]> = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (2 * Math.PI * i) / steps;
+    ring.push([center.lon + lonDelta * Math.cos(angle), center.lat + latDelta * Math.sin(angle)]);
+  }
+  return ring;
+}

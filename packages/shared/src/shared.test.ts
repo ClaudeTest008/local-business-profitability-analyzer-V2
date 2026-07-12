@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bboxAround, circleAreaKm2, haversineKm, isWithinRadius } from './geo.js';
+import {
+  bboxAround,
+  circleAreaKm2,
+  circlePolygonCoords,
+  haversineKm,
+  isWithinRadius,
+} from './geo.js';
 import { clamp, clamp01, linearScale, round, saturating, sum, weightedMean } from './stats.js';
 import { contentHashId, stableStringify } from './id.js';
 import { err, invariant, ok, unwrap } from './result.js';
@@ -28,6 +34,17 @@ describe('geo', () => {
 
   it('circle area', () => {
     expect(circleAreaKm2(1000)).toBeCloseTo(Math.PI, 5);
+  });
+
+  it('circlePolygonCoords: closed ring, points at radius distance', () => {
+    const ring = circlePolygonCoords(berlin, 500, 32);
+    expect(ring.length).toBe(33);
+    expect(ring[0]).toEqual(ring[32]); // closed
+    for (const [lon, lat] of [ring[0]!, ring[8]!, ring[16]!]) {
+      const d = haversineKm(berlin, { lat, lon }) * 1000;
+      expect(d).toBeGreaterThan(450);
+      expect(d).toBeLessThan(550);
+    }
   });
 });
 
