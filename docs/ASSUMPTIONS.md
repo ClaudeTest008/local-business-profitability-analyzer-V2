@@ -46,4 +46,8 @@ Deferred (need native/3rd-party infrastructure not present here):
 - **Polygon/trade-area drawing, measuring, buffers, time slider, side-by-side compare** —
   planned on top of the MapLibre migration.
 - **PPT/Excel exports** — PDF + CSV ship today; PPTX/XLSX generation would add heavy deps.
-- **Offline tile caching** — requires MapLibre offline packs (dev build).
+- **Offline tile packs** — MapLibre's OfflineManager is available, but bulk-downloading the
+  public OSM/CARTO raster tiles we use would violate their usage policies, and
+  `OfflinePackCreateOptions.mapStyle` wants a hosted style URL rather than our inline JSON.
+  Viewed tiles are ambient-cached by MapLibre and work offline; full offline packs need a
+  bulk-download-friendly source (PMTiles, MapTiler key, or self-hosted tiles) first.

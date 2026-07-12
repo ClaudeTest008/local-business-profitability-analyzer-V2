@@ -48,7 +48,9 @@
       "expo-audio",
       "expo-sharing",
       "expo-location",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "./plugins/with-short-build-dir.js",
+      "./plugins/with-cleartext.js"
     ]
   }
 }

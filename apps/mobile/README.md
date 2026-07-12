@@ -31,12 +31,16 @@ Debug APKs bundle no JS — they load from the Metro dev server (`pnpm --filter 
 on the same network). For a self-contained build use `assembleRelease` (auto-signed with the
 debug keystore unless you configure signing).
 
-**Windows MAX_PATH gotcha:** ninja fails with "Filename longer than 260 characters" when the
-repo path is long. Map a short drive first and build from there:
+**Windows MAX_PATH:** handled automatically by `plugins/with-short-build-dir.js` (applied during
+prebuild) — it relocates library buildDirs and the CMake `.cxx` staging dir to `C:\b\lboa`, where
+ninja's object paths (which embed full source paths) stay under 260 chars. Do NOT build from a
+`subst` drive: expo autolinking realpaths back to `C:` and Gradle codegen rejects the mixed roots.
 
-```bat
-subst L: C:\path\to\local-business-profitability-analyzer-V2
-cd /d L:\apps\mobile\android && gradlew assembleDebug
+Release build (self-contained, JS bundled, debug-keystore signed):
+
+```bash
+cd apps/mobile/android && ./gradlew assembleRelease
+# → android/app/build/outputs/apk/release/app-release.apk
 ```
 
 ## Offline behavior (ADR-003)
