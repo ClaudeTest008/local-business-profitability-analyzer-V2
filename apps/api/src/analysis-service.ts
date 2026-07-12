@@ -8,10 +8,15 @@ import type {
 } from '@lboa/types';
 import { bboxAround } from '@lboa/shared';
 import {
+  FixtureGeocodeProvider,
   FixturePoiProvider,
+  NominatimGeocodeProvider,
   OverpassPoiProvider,
   ProviderChain,
+  TokenBucketRateLimiter,
   type CacheStore,
+  type GeocodeRequest,
+  type GeocodeResult,
   type OverpassRequest,
 } from '@lboa/providers';
 import { fieldObservationToEvidence, makePoiEvidence } from '@lboa/evidence';
@@ -23,10 +28,12 @@ import type { Repo } from './repo.js';
 import { FRESH_TTL_MS, STALE_TTL_MS } from './cache.js';
 
 export type PoiChain = ProviderChain<OverpassRequest, Poi[]>;
+export type GeocodeChain = ProviderChain<GeocodeRequest, GeocodeResult>;
 
 export interface AnalysisDeps {
   repo: Repo;
   chain: PoiChain;
+  geocode: GeocodeChain;
 }
 
 /** Everything the route layer needs. */
@@ -50,6 +57,34 @@ export function buildPoiChain(env: Env, cache: CacheStore): PoiChain {
     freshTtlMs: FRESH_TTL_MS,
     staleTtlMs: STALE_TTL_MS,
     clock: Date.now, // the API is the I/O boundary — the engine itself never reads the clock
+  });
+}
+
+/**
+ * Same mode split as the POI chain. Nominatim's public usage policy is 1 req/s,
+ * enforced with a token bucket (ADR-002).
+ */
+export function buildGeocodeChain(env: Env, cache: CacheStore): GeocodeChain {
+  const fixture = new FixtureGeocodeProvider();
+  const live = env.DATA_MODE === 'live';
+  return new ProviderChain({
+    ...(live
+      ? { primary: new NominatimGeocodeProvider(), fallbacks: [fixture] }
+      : { primary: fixture, fallbacks: [] }),
+    cache,
+    freshTtlMs: FRESH_TTL_MS,
+    staleTtlMs: STALE_TTL_MS,
+    clock: Date.now,
+    // Nominatim's public usage policy is 1 req/s (ADR-002); the fixture needs no limiter.
+    ...(live
+      ? {
+          rateLimiter: new TokenBucketRateLimiter({
+            capacity: 1,
+            refillPerSecond: 1,
+            clock: Date.now,
+          }),
+        }
+      : {}),
   });
 }
 

@@ -5,7 +5,7 @@ import { ZodError } from 'zod';
 import type { Env } from './env.js';
 import { selectRepo } from './repo.js';
 import { selectCache } from './cache.js';
-import { buildPoiChain, type AppCtx } from './analysis-service.js';
+import { buildGeocodeChain, buildPoiChain, type AppCtx } from './analysis-service.js';
 import { healthRoutes } from './routes/health.js';
 import { taxonomyRoutes } from './routes/taxonomy.js';
 import { analyzeRoutes } from './routes/analyze.js';
@@ -13,6 +13,7 @@ import { projectRoutes } from './routes/projects.js';
 import { observationRoutes } from './routes/observations.js';
 import { syncRoutes } from './routes/sync.js';
 import { reportRoutes } from './routes/reports.js';
+import { geocodeRoutes } from './routes/geocode.js';
 
 export interface ServerDeps extends Partial<Omit<AppCtx, 'env'>> {
   /** Defaults to true outside NODE_ENV=test. */
@@ -20,10 +21,12 @@ export interface ServerDeps extends Partial<Omit<AppCtx, 'env'>> {
 }
 
 export async function buildServer(env: Env, deps: ServerDeps = {}): Promise<FastifyInstance> {
+  const cache = deps.chain && deps.geocode ? undefined : await selectCache(env);
   const ctx: AppCtx = {
     env,
     repo: deps.repo ?? (await selectRepo(env)),
-    chain: deps.chain ?? buildPoiChain(env, await selectCache(env)),
+    chain: deps.chain ?? buildPoiChain(env, cache!),
+    geocode: deps.geocode ?? buildGeocodeChain(env, cache!),
   };
 
   const app = Fastify({ logger: deps.logger ?? process.env.NODE_ENV !== 'test' });
@@ -57,6 +60,7 @@ export async function buildServer(env: Env, deps: ServerDeps = {}): Promise<Fast
       await api.register(observationRoutes(ctx));
       await api.register(syncRoutes(ctx));
       await api.register(reportRoutes(ctx));
+      await api.register(geocodeRoutes(ctx));
     },
     { prefix: '/api' },
   );
